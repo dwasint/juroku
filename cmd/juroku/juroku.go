@@ -5,17 +5,18 @@ import (
 	"image"
 	_ "image/jpeg"
 	"image/png"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
+
+	_ "golang.org/x/image/bmp"
 
 	"github.com/1lann/imagequant"
 	"github.com/tmpim/juroku"
 )
 
 var (
-	outputPath  = flag.String("o", "image.lua", "set location of output script")
+	outputPath  = flag.String("o", "image.juf", "set location of output script")
 	reference   = flag.String("r", "input_image", "set reference image to derive palette from")
 	previewPath = flag.String("p", "preview.png", "set location of output preview (will be PNG)")
 	speed       = flag.Int("q", 1, "set the processing speed/quality (1 = slowest, 10 = fastest)")
@@ -140,7 +141,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	code, err := juroku.GenerateCode(chunked)
+	frame, err := juroku.GenerateFrameChunk(chunked)
 	if err != nil {
 		log.Println("Failed to generate code:", err)
 		os.Exit(1)
@@ -150,6 +151,7 @@ func main() {
 		preview, err := os.Create(*previewPath)
 		if err != nil {
 			log.Println("Warning: Failed to create preview image:", err)
+			return
 		}
 
 		defer preview.Close()
@@ -160,10 +162,18 @@ func main() {
 		}
 	}()
 
-	err = ioutil.WriteFile(*outputPath, code, 0644)
+	output, err := os.Create(*outputPath)
+	if err != nil {
+		log.Println("Failed to create output file:", err)
+		return
+	}
+
+	defer output.Close()
+
+	err = frame.WriteTo(output)
 	if err != nil {
 		log.Println("Failed to write to output file:", err)
-		os.Exit(1)
+		return
 	}
 
 	log.Println("\nDone! That took " + time.Since(start).String() + ".")
